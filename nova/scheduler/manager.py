@@ -149,6 +149,10 @@ class SchedulerManager(manager.Manager):
         is_rebuild = utils.request_is_rebuild(spec_obj)
         alloc_reqs_by_rp_uuid, provider_summaries, allocation_request_version \
             = None, None, None
+
+        LOG.debug("Searching for allocation candidates for resource [%s] "
+                  "(is_rebuild=%s).", spec_obj, is_rebuild)
+
         if not is_rebuild:
             try:
                 request_filter.process_reqspec(context, spec_obj)
@@ -160,6 +164,7 @@ class SchedulerManager(manager.Manager):
                 enable_pinning_translate=True)
             res = self.placement_client.get_allocation_candidates(
                 context, resources)
+
             if res is None:
                 # We have to handle the case that we failed to connect to the
                 # Placement service and the safe_connect decorator on
@@ -169,6 +174,10 @@ class SchedulerManager(manager.Manager):
             alloc_reqs, provider_summaries, allocation_request_version = res
             alloc_reqs = alloc_reqs or []
             provider_summaries = provider_summaries or {}
+
+            LOG.debug("Placement allocation candidates [%s] for resources "
+                      "[%s] and allocation request [%s].", provider_summaries,
+                      resources, alloc_reqs)
 
             # if the user requested pinned CPUs, we make a second query to
             # placement for allocation candidates using VCPUs instead of PCPUs.
@@ -223,6 +232,11 @@ class SchedulerManager(manager.Manager):
         selections = self._select_destinations(
             context, spec_obj, instance_uuids, alloc_reqs_by_rp_uuid,
             provider_summaries, allocation_request_version, return_alternates)
+
+        LOG.debug("Selected hosts [%s] for resources [%s] with parameters "
+                  "return_alternates [%s] and return_objects[%s] for "
+                  "providers [%s].", selections, instance_uuids,
+                  return_alternates, return_objects, provider_summaries)
 
         # If `return_objects` is False, we need to convert the selections to
         # the older format, which is a list of host state dicts.

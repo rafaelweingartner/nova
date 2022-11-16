@@ -485,6 +485,11 @@ class LiveMigrationTask(base.TaskBase):
 
         scheduler_utils.setup_instance_group(self.context, request_spec)
 
+        # We need to consider the current VM AZ when executing migrations
+        # and cross AZ attach is not allowed
+        if not CONF.cinder.cross_az_attach:
+            request_spec.availability_zone = self.instance.availability_zone
+
         # We currently only support live migrating to hosts in the same
         # cell that the instance lives in, so we need to tell the scheduler
         # to limit the applicable hosts based on cell.

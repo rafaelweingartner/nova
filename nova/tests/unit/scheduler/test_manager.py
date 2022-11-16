@@ -312,9 +312,22 @@ class SchedulerManagerTestCase(test.NoDBTestCase):
                 mock_p_sums, "42.0", False)
 
         mock_process.assert_called_once_with(self.context, fake_spec)
-        mock_log.assert_called_with(
-            'Requesting fallback allocation candidates with VCPU instead of '
-            'PCPU')
+        mock_log.assert_has_calls([
+            mock.call('Starting to schedule for instances: %s', mock.ANY),
+            mock.call('Searching for allocation candidates for resource [%s] '
+                      '(is_rebuild=%s).', fake_spec, False),
+            mock.call('Placement allocation candidates [%s] for resources '
+                      '[%s] and allocation request [%s].', mock.ANY, mock.ANY,
+                      mock.ANY),
+            mock.call('Requesting fallback allocation candidates with VCPU '
+                      'instead of PCPU'),
+
+            mock.call("Selected hosts [%s] for resources [%s] with parameters "
+                      "return_alternates [%s] and return_objects[%s] for "
+                      "providers [%s].", mock.ANY, mock.ANY, mock.ANY,
+                      mock.ANY, mock.ANY)
+        ])
+
         mock_rfrs.assert_has_calls([
             mock.call(self.context, fake_spec, mock.ANY,
                       enable_pinning_translate=True),

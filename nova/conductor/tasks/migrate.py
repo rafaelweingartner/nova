@@ -23,6 +23,9 @@ from nova import objects
 from nova.scheduler.client import report
 from nova.scheduler import utils as scheduler_utils
 
+import nova.conf
+CONF = nova.conf.CONF
+
 LOG = logging.getLogger(__name__)
 
 
@@ -286,6 +289,12 @@ class MigrationTask(base.TaskBase):
         # pop the first alternate from the list to use for the destination, and
         # pass the remaining alternates to the compute.
         if self.host_list is None:
+            # If cross_az_attach is False, we cannot migrate the VM to a host
+            # in a different zone when executing the resize.
+            if not CONF.cinder.cross_az_attach:
+                self.request_spec.availability_zone = \
+                    self.instance.availability_zone
+
             selection = self._schedule()
             if not self._is_selected_host_in_source_cell(selection):
                 # If the selected host is in another cell, we need to execute
