@@ -88,7 +88,8 @@ class RemoteFilesystem(object):
 
     def create_dir(self, host, dst_path, on_execute=None,
                     on_completion=None):
-        LOG.debug("Creating directory %s on remote host %s", dst_path, host)
+        LOG.debug("Creating directory %s on remote host %s via driver [%s].",
+                  dst_path, host, self.driver)
         self.driver.create_dir(host, dst_path, on_execute=on_execute,
                                on_completion=on_completion)
 

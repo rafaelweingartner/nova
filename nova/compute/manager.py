@@ -5864,6 +5864,12 @@ class ComputeManager(manager.Manager):
         # a STOPPED server and we don't want to set it back to ACTIVE
         # in case migrate_disk_and_power_off raises InstanceFaultRollback.
         instance_state = instance.vm_state
+
+        LOG.debug("Executing resize of instance [%s] with image [%s] with "
+                  "migration [%s], flavor [%s] and request spec [%s]. The "
+                  "clean shutdown is [%s].", instance, image, migration,
+                  flavor, request_spec, clean_shutdown)
+
         with self._error_out_instance_on_exception(
                 context, instance, instance_state=instance_state), \
              errors_out_migration_ctxt(migration):
@@ -5878,12 +5884,19 @@ class ComputeManager(manager.Manager):
 
             bdms = objects.BlockDeviceMappingList.get_by_instance_uuid(
                     context, instance.uuid)
+
+            LOG.debug("Block device mapping found for instance [%s]: [%s].",
+                      instance.uuid, bdms)
             self._send_resize_instance_notifications(
                 context, instance, bdms, network_info,
                 fields.NotificationPhase.START)
 
             block_device_info = self._get_instance_block_device_info(
                                 context, instance, bdms=bdms)
+
+            LOG.debug("Block device info [%s] found for instance [%s] and "
+                      "block mapping [%s].", block_device_info, instance.uuid,
+                      bdms)
 
             timeout, retry_interval = self._get_power_off_values(
                 instance, clean_shutdown)

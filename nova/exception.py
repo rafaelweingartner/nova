@@ -184,6 +184,11 @@ class ForbiddenWithRemoteManagedPorts(NotSupported):
                 " are in use.")
 
 
+class CannotResizeDifferentAggregates(NotSupported):
+    msg_fmt = _("Cannot resize instance [%(instance_name)s] to a flavor with "
+                "different host aggregates.")
+
+
 class AdminRequired(Forbidden):
     msg_fmt = _("User does not have admin privileges")
 

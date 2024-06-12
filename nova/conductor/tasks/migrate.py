@@ -329,6 +329,13 @@ class MigrationTask(base.TaskBase):
         LOG.debug("Calling prep_resize with selected host: %s; "
                   "Selected node: %s; Alternates: %s", host, node,
                   self.host_list, instance=self.instance)
+
+        LOG.debug("Calling prep_resize for instance [%s] with image [%s], "
+                  "flavor [%s], host [%s], node [%s], migration type [%s], "
+                  "request spec [%s], filters [%s], shutdown [%s], and host "
+                  "list [%s].", self.instance, self.request_spec.image,
+                  self.flavor, host, node, migration, self.request_spec,
+                  legacy_props, self.clean_shutdown, self.host_list)
         # RPC cast to the destination host to start the migration process.
         self.compute_rpcapi.prep_resize(
             # NOTE(mriedem): Using request_spec.image here is potentially

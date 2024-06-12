@@ -308,6 +308,14 @@ class ComputeTaskManager:
     def migrate_server(self, context, instance, scheduler_hint, live, rebuild,
             flavor, block_migration, disk_over_commit, reservations=None,
             clean_shutdown=True, request_spec=None, host_list=None):
+
+        LOG.debug("Executing live [%s] migrate VM [%s] with scheduler hints "
+                  "[%s] for rebuild [%s] and flavor [%s]. The block migration "
+                  "is [%s] with disk over commit [%s] and clean shutdown "
+                  "[%s]. The VM request spec is [%s] and host list [%s].",
+                  live, instance, scheduler_hint, rebuild, flavor,
+                  block_migration, disk_over_commit, clean_shutdown,
+                  request_spec, host_list)
         if instance and not isinstance(instance, nova_object.NovaObject):
             # NOTE(danms): Until v2 of the RPC API, we need to tolerate
             # old-world instance objects here

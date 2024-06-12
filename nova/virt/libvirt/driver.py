@@ -11098,12 +11098,17 @@ class LibvirtDriver(driver.ComputeDriver):
         """
         block_device_mapping = driver.block_device_info_get_mapping(
             block_device_info)
+        LOG.debug("Block device mapping [%s] found in  info [%s] with "
+                  "driver [%s] for instance [%s].", block_device_mapping,
+                  block_device_info, driver, guest_config.name)
 
         volume_devices = set()
         for vol in block_device_mapping:
             disk_dev = vol['mount_device'].rpartition("/")[2]
             volume_devices.add(disk_dev)
 
+        LOG.debug("Volume devices [%s] found for instance [%s].",
+                  volume_devices, guest_config.name)
         disk_info = []
 
         if (
@@ -11116,6 +11121,9 @@ class LibvirtDriver(driver.ComputeDriver):
 
         for device in guest_config.devices:
             if device.root_name != node_type:
+                LOG.debug("Ignoring device [%s] for block migration for VM "
+                          "[%s] because it is not a disk element.",
+                          device, guest_config.name)
                 continue
             disk_type = device.source_type
             if device.root_name == 'filesystem':
@@ -11131,17 +11139,21 @@ class LibvirtDriver(driver.ComputeDriver):
                 path = device.source_path
 
             if not path:
-                LOG.debug('skipping disk for %s as it does not have a path',
-                          guest_config.name)
+                LOG.debug(
+                    'skipping disk [%s] for %s as it does not have a path',
+                    device, guest_config.name)
                 continue
 
             if disk_type not in ['file', 'block']:
-                LOG.debug('skipping disk because it looks like a volume', path)
+                LOG.debug('skipping disk [%s] because it looks like a volume '
+                          'for instance [%s].', path, guest_config.name)
                 continue
 
             if target in volume_devices:
                 LOG.debug('skipping disk %(path)s (%(target)s) as it is a '
-                          'volume', {'path': path, 'target': target})
+                          'volume for instance [%(vm)s]',
+                          {'path': path, 'target': target,
+                           'vm': guest_config.name})
                 continue
 
             if device.root_name == 'filesystem':
@@ -11181,9 +11193,10 @@ class LibvirtDriver(driver.ComputeDriver):
                 over_commit_size = 0
 
             else:
-                LOG.debug('skipping disk %(path)s (%(target)s) - unable to '
-                          'determine if volume',
-                          {'path': path, 'target': target})
+                LOG.debug('Skipping disk %(path)s (%(target)s) - unable to '
+                          'determine volume size for instance [%(vm)s].',
+                          {'path': path, 'target': target,
+                           'vm': guest_config.name})
                 continue
 
             disk_info.append({'type': driver_type,
@@ -11442,18 +11455,26 @@ class LibvirtDriver(driver.ComputeDriver):
         # shared storage for instance dir (eg. NFS).
         inst_base = libvirt_utils.get_instance_path(instance)
         inst_base_resize = inst_base + "_resize"
+
         shared_instance_path = self._is_path_shared_with(dest, inst_base)
 
         # try to create the directory on the remote compute node
         # if this fails we pass the exception up the stack so we can catch
         # failures here earlier
         if not shared_instance_path:
+            LOG.debug("The migration is not with shared paths for instance "
+                      "[%s] on path [%s] and for destination [%s].",
+                      instance, inst_base, dest)
             try:
                 self._remotefs.create_dir(dest, inst_base)
             except processutils.ProcessExecutionError as e:
                 reason = _("not able to execute ssh command: %s") % e
                 raise exception.InstanceFaultRollback(
                     exception.ResizeError(reason=reason))
+        else:
+            LOG.debug("The migration is with shared paths for instance "
+                      "[%s] on path [%s] and for destination [%s].",
+                      instance, inst_base, dest)
 
         self.power_off(instance, timeout, retry_interval)
         self.unplug_vifs(instance, network_info)
@@ -11463,7 +11484,12 @@ class LibvirtDriver(driver.ComputeDriver):
             connection_info = vol['connection_info']
             self._disconnect_volume(context, connection_info, instance)
 
+        LOG.debug("Retrieving the disk information based on the block device "
+                  "info [%s] for instance [%s].", block_device_info, instance)
+
         disk_info = self._get_instance_disk_info(instance, block_device_info)
+        LOG.debug("Disks [%s] to be migrated for instance [%s].",
+                  disk_info, instance)
 
         try:
             # If cleanup failed in previous resize attempts we try to remedy
@@ -11497,6 +11523,10 @@ class LibvirtDriver(driver.ComputeDriver):
                     continue
 
                 compression = info['type'] not in NO_COMPRESSION_TYPES
+
+                LOG.debug("Executing copy image from path [%s] to path [%s] "
+                          "on destination [%s] for VM [%s] with info [%s].",
+                          from_path, img_path, dest, instance, info)
                 libvirt_utils.copy_image(from_path, img_path, host=dest,
                                          on_execute=on_execute,
                                          on_completion=on_completion,

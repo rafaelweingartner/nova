@@ -4173,6 +4173,10 @@ class API:
         allow_cross_cell_resize = self._allow_cross_cell_resize(
             context, instance)
 
+        LOG.debug("Executing VM resize for instance [%s] with flavor [%s] on "
+                  "host [%s] using a clean shutdown [%s] and disk "
+                  "configuration [%s].", instance, flavor_id, host_name,
+                  clean_shutdown, auto_disk_config)
         if host_name is not None:
             node = self._validate_host_for_cold_migrate(
                 context, instance, host_name, allow_cross_cell_resize)
@@ -4214,6 +4218,24 @@ class API:
                 if not volume_backed:
                     reason = _('Resize to zero disk flavor is not allowed.')
                     raise exception.CannotResizeDisk(reason=reason)
+
+            current_extra_specs = current_flavor.get('extra_specs', {})
+            new_flavor_extra_specs = new_flavor.get('extra_specs', {})
+
+            current_aggregates = API._retrieve_aggregates_information(
+                current_extra_specs)
+            new_flavor_aggregates = API._retrieve_aggregates_information(
+                new_flavor_extra_specs)
+
+            LOG.debug("Checking if we can change the flavor for instance [%s] "
+                      "from [%s] to [%s]. The aggregates of the current "
+                      "flavor is [%s] and the aggregates found for the new "
+                      "flavor is [%s].", instance, current_flavor, new_flavor,
+                      current_aggregates, new_flavor_aggregates)
+
+            if current_aggregates != new_flavor_aggregates:
+                raise exception.CannotResizeDifferentAggregates(
+                    instance_name=instance.uuid)
 
         current_flavor_name = current_flavor['name']
         new_flavor_name = new_flavor['name']
@@ -4341,6 +4363,28 @@ class API:
             clean_shutdown=clean_shutdown,
             request_spec=request_spec,
             do_cast=True)
+
+    @staticmethod
+    def _retrieve_aggregates_information(extra_specs):
+        """Retrieves the aggregates from the extra specs.
+
+        The aggregates will be read from the extra specs, and they will be
+        returned as a dictionary with key and value. Where the key is the
+        aggregates name, and the dictionary is the value of the aggregates key.
+
+        :param extra_specs:
+        :return: aggregates information found in the extra_specs
+        """
+        aggregates_key = "aggregate_instance_extra_specs"
+        aggregates_dict = {}
+
+        for key in extra_specs.keys():
+            if aggregates_key in key:
+                aggregates_actual_key = key.split(":")[1]
+                aggregates_value = extra_specs[key]
+                aggregates_dict[aggregates_actual_key] = aggregates_value
+
+        return aggregates_dict
 
     def _allow_resize_to_same_host(self, cold_migrate, instance):
         """Contains logic for excluding the instance.host on resize/migrate.
